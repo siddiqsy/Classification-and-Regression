@@ -1,417 +1,437 @@
 import numpy as np
-from scipy.optimize import minimize
 from scipy.io import loadmat
-from numpy.linalg import det, inv
-from math import sqrt, pi
-import scipy.io
+from scipy.optimize import minimize
+from sklearn import svm
 import matplotlib.pyplot as plt
 import pickle
-import sys
+import itertools
+from sklearn import metrics
+from sklearn.metrics import confusion_matrix
 
-def ldaLearn(X,y):
-    # Inputs
-    # X - a N x d matrix with each row corresponding to a training example
-    # y - a N x 1 column vector indicating the labels for each training example
-    #
-    # Outputs
-    # means - A d x k matrix containing learnt means for each of the k classes
-    
-    k=0;
-    df1=[];
-    df2=[];
-    df3=[];
-    df4=[];
-    df5=[];
-    df = np.concatenate((X,y), axis=1);
-    for i in df[:,2]:
-        if(i == 1):
-            df1.append(df[k,:]);
-        if(i == 2):
-            df2.append(df[k,:]);
-        if(i == 3):
-            df3.append(df[k,:]);
-        if(i == 4):
-            df4.append(df[k,:]);
-        if(i == 5):
-            df5.append(df[k,:]);
-        k=k+1;
-    means=[]
-    means.append(np.mean(df1,axis=0))
-    means.append(np.mean(df2,axis=0))
-    means.append(np.mean(df3,axis=0))
-    means.append(np.mean(df4,axis=0))
-    means.append(np.mean(df5,axis=0))
-    df_t = np.transpose(df)
-    covmat = np.cov(df_t[0:2,:])
-        
-    # covmat - A single d x d learnt covariance matrix 
-    
-    # IMPLEMENT THIS METHOD 
-    return means,covmat
 
-def qdaLearn(X,y):
-    # Inputs
-    # X - a N x d matrix with each row corresponding to a training example
-    # y - a N x 1 column vector indicating the labels for each training example
-    #
-    # Outputs
-    # means - A d x k matrix containing learnt means for each of the k classes
-    k=0;
-    df1=[];
-    df2=[];
-    df3=[];
-    df4=[];
-    df5=[];
-    df = np.concatenate((X,y), axis=1);
-    for i in df[:,2]:
-        if(i == 1):
-            df1.append(df[k,:]);
-        if(i == 2):
-            df2.append(df[k,:]);
-        if(i == 3):
-            df3.append(df[k,:]);
-        if(i == 4):
-            df4.append(df[k,:]);
-        if(i == 5):
-            df5.append(df[k,:]);
-        k=k+1;
-    means=[]
-    means.append(np.mean(df1,axis=0))
-    means.append(np.mean(df2,axis=0))
-    means.append(np.mean(df3,axis=0))
-    means.append(np.mean(df4,axis=0))
-    means.append(np.mean(df5,axis=0))
-    df_t1 = np.transpose(df1);
-    df_t2 = np.transpose(df2);
-    df_t3 = np.transpose(df3);
-    df_t4 = np.transpose(df4);
-    df_t5 = np.transpose(df5);
-    covmats=[];
-    covmats.append(np.cov(df_t1[0:2,:]))
-    covmats.append(np.cov(df_t2[0:2,:]))
-    covmats.append(np.cov(df_t3[0:2,:]))
-    covmats.append(np.cov(df_t4[0:2,:]))
-    covmats.append(np.cov(df_t5[0:2,:]))
-    # covmats - A list of k d x d learnt covariance matrices for each of the k classes
-    
-    # IMPLEMENT THIS METHOD
-    return means,covmats
+def preprocess():
+    """ 
+     Input:
+     Although this function doesn't have any input, you are required to load
+     the MNIST data set from file 'mnist_all.mat'.
 
-def ldaTest(means,covmat,Xtest,ytest):
-    # Inputs
-    # means, covmat - parameters of the LDA model
-    # Xtest - a N x d matrix with each row corresponding to a test example
-    # ytest - a N x 1 column vector indicating the labels for each test example
-    # Outputs
-    # acc - A scalar accuracy value
-    X_norm1 = Xtest - means[0][0:2]
-    X_norm2 = Xtest - means[1][0:2]
-    X_norm3 = Xtest - means[2][0:2]
-    X_norm4 = Xtest - means[3][0:2]
-    X_norm5 = Xtest - means[4][0:2]
-    
-    covmat_inv = np.linalg.inv(covmat);
-    
-    pred1=[];
-    for i in X_norm1:
-        pred1.append(np.dot(np.dot(np.transpose(i),covmat_inv),i))
-    pred2=[];
-    for i in X_norm2:
-        pred2.append(np.dot(np.dot(np.transpose(i),covmat_inv),i))
-    pred3=[];
-    for i in X_norm3:
-        pred3.append(np.dot(np.dot(np.transpose(i),covmat_inv),i))
-    pred4=[];
-    for i in X_norm4:
-        pred4.append(np.dot(np.dot(np.transpose(i),covmat_inv),i))
-    pred5=[];
-    for i in X_norm5:
-        pred5.append(np.dot(np.dot(np.transpose(i),covmat_inv),i))
-        
-    pred =[];
-    pred.append(pred1);
-    pred.append(pred2);
-    pred.append(pred3);
-    pred.append(pred4);
-    pred.append(pred5);
-    
-    ypred =[];
-    for i in range(0,len(ytest)):
-        for j in range(0,5):
-            if pred[j][i] == np.amin([pred[0][i],pred[1][i],pred[2][i],pred[3][i],pred[4][i]]):
-                ypred.append(j+1);
-    count=0;
-    for i in range(0,len(ytest)):
-        if ypred[i]-ytest[i][0]==0:
-            count=count+1;
-                
-    acc=count/len(ytest)
-    # ypred - N x 1 column vector indicating the predicted labels
-    ypred=np.array(ypred);
-    # IMPLEMENT THIS METHOD
-    return acc,ypred
+     Output:
+     train_data: matrix of training set. Each row of train_data contains 
+       feature vector of a image
+     train_label: vector of label corresponding to each image in the training
+       set
+     validation_data: matrix of training set. Each row of validation_data 
+       contains feature vector of a image
+     validation_label: vector of label corresponding to each image in the 
+       training set
+     test_data: matrix of training set. Each row of test_data contains 
+       feature vector of a image
+     test_label: vector of label corresponding to each image in the testing
+       set
+    """
 
-def qdaTest(means,covmats,Xtest,ytest):
-    # Inputs
-    # means, covmats - parameters of the QDA model
-    # Xtest - a N x d matrix with each row corresponding to a test example
-    # ytest - a N x 1 column vector indicating the labels for each test example
-    
-    # Outputs
-    X_norm1 = Xtest - means[0][0:2]
-    X_norm2 = Xtest - means[1][0:2]
-    X_norm3 = Xtest - means[2][0:2]
-    X_norm4 = Xtest - means[3][0:2]
-    X_norm5 = Xtest - means[4][0:2]
-    
-    covmat_inv1 = np.linalg.inv(covmats[0])
-    covmat_inv2 = np.linalg.inv(covmats[1])
-    covmat_inv3 = np.linalg.inv(covmats[2])
-    covmat_inv4 = np.linalg.inv(covmats[3])
-    covmat_inv5 = np.linalg.inv(covmats[4])
-    
-    pred1=[];
-    for i in X_norm1:
-        pred1.append(np.dot(np.dot(np.transpose(i),covmat_inv1),i))
-    pred2=[];
-    for i in X_norm2:
-        pred2.append(np.dot(np.dot(np.transpose(i),covmat_inv2),i))
-    pred3=[];
-    for i in X_norm3:
-        pred3.append(np.dot(np.dot(np.transpose(i),covmat_inv3),i))
-    pred4=[];
-    for i in X_norm4:
-        pred4.append(np.dot(np.dot(np.transpose(i),covmat_inv4),i))
-    pred5=[];
-    for i in X_norm5:
-        pred5.append(np.dot(np.dot(np.transpose(i),covmat_inv5),i))
-        
-    pred =[];
-    pred.append(pred1);
-    pred.append(pred2);
-    pred.append(pred3);
-    pred.append(pred4);
-    pred.append(pred5);
-    
-    ypred =[];
-    for i in range(0,len(ytest)):
-        for j in range(0,5):
-            if pred[j][i] == np.amin([pred[0][i],pred[1][i],pred[2][i],pred[3][i],pred[4][i]]):
-                ypred.append(j+1);
-    count=0;
-    for i in range(0,len(ytest)):
-        if ypred[i]-ytest[i][0]==0:
-            count=count+1;
-                
-    acc=count/len(ytest)
-    # acc - A scalar accuracy value
-    # ypred - N x 1 column vector indicating the predicted labels
-    ypred=np.array(ypred);
-    # IMPLEMENT THIS METHOD
-    return acc,ypred
+    mat = loadmat('C:/Users/siddi/Desktop/Machine Learning/Project-3/Assignment3/basecode/mnist_all.mat')  # loads the MAT object as a Dictionary
 
-def learnOLERegression(X,y):
-    # Inputs:                                                         
-    # X = N x d 
-    # y = N x 1                                                               
-    # Output: 
-    # w = d x 1 
-    w = np.dot(np.linalg.inv(np.dot(np.transpose(X),X)),np.dot(np.transpose(X),y));
-    # IMPLEMENT THIS METHOD                                                   
-    return w
+    n_feature = mat.get("train1").shape[1]
+    n_sample = 0
+    for i in range(10):
+        n_sample = n_sample + mat.get("train" + str(i)).shape[0]
+    n_validation = 1000
+    n_train = n_sample - 10 * n_validation
 
-def learnRidgeRegression(X,y,lambd):
-    # Inputs:
-    # X = N x d                                                               
-    # y = N x 1 
-    # lambd = ridge parameter (scalar)
-    # Output:                                                                  
-    # w = d x 1                                                                
-    # IMPLEMENT THIS METHOD  
+    # Construct validation data
+    validation_data = np.zeros((10 * n_validation, n_feature))
+    for i in range(10):
+        validation_data[i * n_validation:(i + 1) * n_validation, :] = mat.get("train" + str(i))[0:n_validation, :]
+
+    # Construct validation label
+    validation_label = np.ones((10 * n_validation, 1))
+    for i in range(10):
+        validation_label[i * n_validation:(i + 1) * n_validation, :] = i * np.ones((n_validation, 1))
+
+    # Construct training data and label
+    train_data = np.zeros((n_train, n_feature))
+    train_label = np.zeros((n_train, 1))
+    temp = 0
+    for i in range(10):
+        size_i = mat.get("train" + str(i)).shape[0]
+        train_data[temp:temp + size_i - n_validation, :] = mat.get("train" + str(i))[n_validation:size_i, :]
+        train_label[temp:temp + size_i - n_validation, :] = i * np.ones((size_i - n_validation, 1))
+        temp = temp + size_i - n_validation
+
+    # Construct test data and label
+    n_test = 0
+    for i in range(10):
+        n_test = n_test + mat.get("test" + str(i)).shape[0]
+    test_data = np.zeros((n_test, n_feature))
+    test_label = np.zeros((n_test, 1))
+    temp = 0
+    for i in range(10):
+        size_i = mat.get("test" + str(i)).shape[0]
+        test_data[temp:temp + size_i, :] = mat.get("test" + str(i))
+        test_label[temp:temp + size_i, :] = i * np.ones((size_i, 1))
+        temp = temp + size_i
+
+    # Delete features which don't provide any useful information for classifiers
+    sigma = np.std(train_data, axis=0)
+    index = np.array([])
+    for i in range(n_feature):
+        if (sigma[i] > 0.001):
+            index = np.append(index, [i])
+    train_data = train_data[:, index.astype(int)]
+    validation_data = validation_data[:, index.astype(int)]
+    test_data = test_data[:, index.astype(int)]
+
+    # Scale data to 0 and 1
+    train_data /= 255.0
+    validation_data /= 255.0
+    test_data /= 255.0
+
+    return train_data, train_label, validation_data, validation_label, test_data, test_label
+
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-z))
+
+
+def blrObjFunction(initialWeights, *args):
+    """
+    blrObjFunction computes 2-class Logistic Regression error function and
+    its gradient.
+
+    Input:
+        initialWeights: the weight vector (w_k) of size (D + 1) x 1 
+        train_data: the data matrix of size N x D
+        labeli: the label vector (y_k) of size N x 1 where each entry can be either 0 or 1 representing the label of corresponding feature vector
+
+    Output: 
+        error: the scalar value of error function of 2-class logistic regression
+        error_grad: the vector of size (D+1) x 1 representing the gradient of
+                    error function
+    """
+    train_data, labeli = args
+
+    n_data = train_data.shape[0]
+    n_features = train_data.shape[1]
+    error = 0
+    error_grad = np.zeros((n_features + 1, 1))
+
+    ##################
+    # YOUR CODE HERE #
+    ##################
+    # HINT: Do not forget to add the bias term to your input data
+    w = initialWeights.reshape((n_feature+1,1))
     
-    w = np.dot((np.linalg.inv(np.add(np.dot(np.transpose(X),X), lambd*np.eye(np.shape(X)[1])))),np.dot(np.transpose(X),y));
-    return w
+    x = np.hstack((np.ones((n_data,1)),train_data))
+    xw = np.dot(x,w)
+    y = sigmoid(xw)
 
-def testOLERegression(w,Xtest,ytest):
-    # Inputs:
-    # w = d x 1
-    # Xtest = N x d
-    # ytest = X x 1
-    # Output:
-    # mse
-    mse = sum((np.dot(Xtest,w) - ytest)**2)/len(ytest);
-    # IMPLEMENT THIS METHOD
-    return mse
+    log_error = -(labeli * np.log(y) + (1.0 - labeli) * np.log(1.0 - y))
+    error = np.sum(log_error)
 
-def regressionObjVal(w, X, y, lambd):
-    # compute squared error (scalar) and gradient of squared error with respect
-    # to w (vector) for the given data X and y and the regularization parameter
-    # lambda
-    w = np.asmatrix(w)
-    w = w.transpose()
-    error = 0.5 * sum(np.dot(np.transpose((y - np.dot(X,w))),(y - np.dot(X,w))),lambd*np.dot(np.transpose(w),w));
-    error_grad = np.subtract(lambd*w, np.dot(np.transpose(X),np.subtract(y,np.dot(X,w))));
-    error_grad = np.squeeze(np.array(error_grad))
-    # IMPLEMENT THIS METHOD                                             
+    error_grad_mat = (y - labeli) * x
+    error_grad = np.sum(error_grad_mat, axis=0)
+    
     return error, error_grad
 
-def mapNonLinear(x,p):
-    # Inputs:                                                                  
-    # x - a single column vector (N x 1)                                       
-    # p - integer (>= 0)                                                       
-    # Outputs:                                                                 
-    # Xp - (N x (p+1)) 
+
+def blrPredict(W, data):
+    """
+     blrObjFunction predicts the label of data given the data and parameter W 
+     of Logistic Regression
+     
+     Input:
+         W: the matrix of weight of size (D + 1) x 10. Each column is the weight 
+         vector of a Logistic Regression classifier.
+         X: the data matrix of size N x D
+         
+     Output: 
+         label: vector of size N x 1 representing the predicted label of 
+         corresponding feature vector given in data matrix
+
+    """
+    label = np.zeros((data.shape[0], 1))
+
+    ##################
+    # YOUR CODE HERE #
+    ##################
+    # HINT: Do not forget to add the bias term to your input data
+    x = np.hstack((np.ones((data.shape[0], 1)),data))
+    xw = np.dot(x, W)
+    sig_fun = sigmoid(xw)   
+    label_max = np.argmax(sig_fun, axis=1)   
+    label = label_max.reshape((data.shape[0],1))
+    return label
+
+def mlrObjFunction(params, *args):
+    """
+    mlrObjFunction computes multi-class Logistic Regression error function and
+    its gradient.
+
+    Input:
+        initialWeights_b: the weight vector of size (D + 1) x 10
+        train_data: the data matrix of size N x D
+        labeli: the label vector of size N x 1 where each entry can be either 0 or 1
+                representing the label of corresponding feature vector
+
+    Output:
+        error: the scalar value of error function of multi-class logistic regression
+        error_grad: the vector of size (D+1) x 10 representing the gradient of
+                    error function
+    """
+    train_data, labeli = args
+    n_data = train_data.shape[0]
+    n_feature = train_data.shape[1]
+    error = 0
+    error_grad = np.zeros((n_feature + 1, n_class))
+
+    ##################
+    # YOUR CODE HERE #
+    ##################
+    # HINT: Do not forget to add the bias term to your input data
+    w = params.reshape((n_feature+1,10))
+    x = np.hstack((np.ones((n_data,1)),train_data))
+        
+    n=np.exp(np.dot(x,w))
+        
+    d_sum=np.sum(n,axis=1)
     
-    Xp = np.zeros((x.shape[0],p+1))
-    for i in range(0,p+1):
-        Xp[:,i] = pow(x,i)
-    # IMPLEMENT THIS METHOD
-    return Xp
+    d=d_sum.reshape(d_sum.shape[0],1)
+    
+    y=n/d
+    
+    error = -np.sum(np.sum(labeli*np.log(y) + (1.0 - labeli) * np.log(1.0 - y)))
 
-# Main script
+    error_grad = np.dot(np.transpose(x) , (y-labeli))
+    
+    error_grad=error_grad.ravel()
+    
+    return error, error_grad
 
-# Problem 1
-# load the sample data                                                                 
-if sys.version_info.major == 2:
-    X,y,Xtest,ytest = pickle.load(open('sample.pickle','rb'))
-else:
-    X,y,Xtest,ytest = pickle.load(open('sample.pickle','rb'),encoding = 'latin1')
 
-# LDA
-means,covmat = ldaLearn(X,y)
-ldaacc,ldares = ldaTest(means,covmat,Xtest,ytest)
-print('LDA Accuracy = '+str(ldaacc))
-# QDA
-means,covmats = qdaLearn(X,y)
-qdaacc,qdares = qdaTest(means,covmats,Xtest,ytest)
-print('QDA Accuracy = '+str(qdaacc))
+def mlrPredict(W, data):
+    """
+     mlrObjFunction predicts the label of data given the data and parameter W
+     of Logistic Regression
 
-# plotting boundaries
-x1 = np.linspace(-5,20,100)
-x2 = np.linspace(-5,20,100)
-xx1,xx2 = np.meshgrid(x1,x2)
-xx = np.zeros((x1.shape[0]*x2.shape[0],2))
-xx[:,0] = xx1.ravel()
-xx[:,1] = xx2.ravel()
+     Input:
+         W: the matrix of weight of size (D + 1) x 10. Each column is the weight
+         vector of a Logistic Regression classifier.
+         X: the data matrix of size N x D
 
-fig = plt.figure(figsize=[12,6])
-plt.subplot(1, 2, 1)
+     Output:
+         label: vector of size N x 1 representing the predicted label of
+         corresponding feature vector given in data matrix
 
-yt=[]
-for i in range(0,len(ytest)):
-    yt.append(ytest[i][0])
+    """
+    label = np.zeros((data.shape[0], 1))
 
-zacc,zldares = ldaTest(means,covmat,xx,np.zeros((xx.shape[0],1)))
-plt.contourf(x1,x2,zldares.reshape((x1.shape[0],x2.shape[0])),alpha=0.3)
-plt.scatter(Xtest[:,0],Xtest[:,1],c=yt)
-plt.title('LDA')
+    ##################
+    # YOUR CODE HERE #
+    ##################
+    # HINT: Do not forget to add the bias term to your input data
+    x = np.hstack((np.ones((data.shape[0], 1)),data))
+    n=np.exp(np.dot(x,W))
+        
+    w_sum=np.sum(n,axis=1)
+    d=w_sum.reshape(w_sum.shape[0],1)
+    
+    t=n/d   
+    label_max = np.argmax(t, axis=1)   
+    label = label_max.reshape((data.shape[0],1))
+    return label
 
-plt.subplot(1, 2, 2)
 
-zacc,zqdares = qdaTest(means,covmats,xx,np.zeros((xx.shape[0],1)))
-plt.contourf(x1,x2,zqdares.reshape((x1.shape[0],x2.shape[0])),alpha=0.3)
-plt.scatter(Xtest[:,0],Xtest[:,1],c=yt)
-plt.title('QDA')
+"""
+Script for Logistic Regression
+"""
+train_data, train_label, validation_data, validation_label, test_data, test_label = preprocess()
 
+# number of classes
+n_class = 10
+
+# number of training samples
+n_train = train_data.shape[0]
+
+# number of features
+n_feature = train_data.shape[1]
+
+Y = np.zeros((n_train, n_class))
+for i in range(n_class):
+    Y[:, i] = (train_label == i).astype(int).ravel()
+
+# Logistic Regression with Gradient Descent
+W = np.zeros((n_feature + 1, n_class))
+initialWeights = np.zeros((n_feature + 1, 1))
+opts = {'maxiter': 100}
+for i in range(n_class):
+    labeli = Y[:, i].reshape(n_train, 1)
+    args = (train_data, labeli)
+    nn_params = minimize(blrObjFunction, initialWeights, jac=True, args=args, method='CG', options=opts)
+    W[:, i] = nn_params.x.reshape((n_feature + 1,))
+
+# Find the accuracy on Training Dataset
+predicted_label_tr = blrPredict(W, train_data)
+print('\n Training set Accuracy:' + str(100 * np.mean((predicted_label == train_label).astype(float))) + '%')
+
+# Find the accuracy on Validation Dataset
+predicted_label = blrPredict(W, validation_data)
+print('\n Validation set Accuracy:' + str(100 * np.mean((predicted_label == validation_label).astype(float))) + '%')
+
+# Find the accuracy on Testing Dataset
+predicted_label_te = blrPredict(W, test_data)
+print('\n Testing set Accuracy:' + str(100 * np.mean((predicted_label == test_label).astype(float))) + '%')
+
+"""
+Script for Support Vector Machine
+"""
+
+idx=np.random.choice(train_data.shape[0], replace=False, size=10000)
+
+train_data_sampled = train_data[idx]
+train_label_sampled = train_label[idx]
+
+print('\n\n--------------SVM-------------------\n\n')
+##################
+# YOUR CODE HERE #
+##################
+print('SVM Using linear kernel')
+out = svm.SVC(kernel='linear')
+out.fit(train_data, train_label.flatten())
+print('\n Training Accuracy:' + str(100*out.score(train_data_sampled, train_label_sampled)) + '%')
+print('\n Validation Accuracy:' + str(100*out.score(validation_data, validation_label)) + '%')
+print('\n Testing Accuracy:' + str(100*out.score(test_data, test_label)) + '%')
+
+
+print('\n\n SVM Using radial basis function with value of gamma setting to 1')
+out = svm.SVC(kernel='rbf', gamma=1.0)
+out.fit(train_data, train_label.flatten())
+print('\n Training Accuracy:' + str(100*out.score(train_data_sampled, train_label_sampled)) + '%')
+print('\n Validation Accuracy:' + str(100*out.score(validation_data, validation_label)) + '%')
+print('\n Testing Accuracy:' + str(100*out.score(test_data, test_label)) + '%')
+
+
+print('\n\n SVM Using radial basis function with value of gamma setting to default')
+out = svm.SVC(kernel='rbf')
+out.fit(train_data, train_label.flatten())
+print('\n Training Accuracy:' + str(100*out.score(train_data_sampled, train_label_sampled)) + '%')
+print('\n Validation Accuracy:' + str(100*out.score(validation_data, validation_label)) + '%')
+print('\n Testing Accuracy:' + str(100*out.score(test_data, test_label)) + '%')
+
+
+print('\n\n SVM Using radial basis function with value of gamma setting to default and varying value of C (1,10,20,30,··· ,100')
+training_accuracy = np.zeros(11)
+validation_accuracy = np.zeros(11)
+testing_accuracy = np.zeros(11)
+C = np.zeros(11)
+C[0] = 1.0   # first value is 1
+C[1:] = [x for x in np.arange(10.0, 101.0, 10.0)]    
+
+for i in range(11):
+    out = svm.SVC(C=C[i],kernel='rbf')
+    out.fit(train_data, train_label.flatten())
+    training_accuracy[i] = 100*out.score(train_data_sampled, train_label_sampled)
+    validation_accuracy[i] = 100*out.score(validation_data, validation_label)
+    testing_accuracy[i] = 100*out.score(test_data, test_label)
+
+import pickle
+import matplotlib.pyplot as plt
+pickle.dump((training_accuracy, validation_accuracy, testing_accuracy),open("C_Results_sampled.pickle","wb"))
+
+plt.plot(C, training_accuracy, 'o-',
+    C, validation_accuracy,'o-',
+    C, testing_accuracy, 'o-')
+
+plt.title('Accuracy with SVM of Gaussian kernel and various values of C')
+plt.xlabel('C values')
+plt.ylabel('Accuracy in (%)')
+plt.legend(('Training','Validation','Testing'), loc='lower right')
+plt.tight_layout()
+plt.grid(True)
+plt.savefig("plot_image_sampled.png")
 plt.show()
-# Problem 2
-if sys.version_info.major == 2:
-    X,y,Xtest,ytest = pickle.load(open('diabetes.pickle','rb'))
-else:
-    X,y,Xtest,ytest = pickle.load(open('diabetes.pickle','rb'),encoding = 'latin1')
 
-# add intercept
-X_i = np.concatenate((np.ones((X.shape[0],1)), X), axis=1)
-Xtest_i = np.concatenate((np.ones((Xtest.shape[0],1)), Xtest), axis=1)
+"""
+Script for Extra Credit Part
+"""
+# FOR EXTRA CREDIT ONLY
+W_b = np.zeros((n_feature + 1, n_class))
+initialWeights_b = np.zeros((n_feature + 1, n_class))
+opts_b = {'maxiter': 100}
 
-w = learnOLERegression(X,y)
-mle = testOLERegression(w,Xtest,ytest)
+args_b = (train_data, Y)
+nn_params = minimize(mlrObjFunction, initialWeights_b, jac=True, args=args_b, method='CG', options=opts_b)
+W_b = nn_params.x.reshape((n_feature + 1, n_class))
 
-w_i = learnOLERegression(X_i,y)
-mle_i = testOLERegression(w_i,Xtest_i,ytest)
+# Find the accuracy on Training Dataset
+predicted_label_b_tr = mlrPredict(W_b, train_data)
+print('\n Training set Accuracy:' + str(100 * np.mean((predicted_label_b_tr == train_label).astype(float))) + '%')
 
-print('MSE without intercept '+str(mle))
-print('MSE with intercept '+str(mle_i))
+# Find the accuracy on Validation Dataset
+predicted_label_b = mlrPredict(W_b, validation_data)
+print('\n Validation set Accuracy:' + str(100 * np.mean((predicted_label_b == validation_label).astype(float))) + '%')
 
-# Problem 3
-k = 101
-lambdas = np.linspace(0, 1, num=k)
-i = 0
-mses3_train = np.zeros((k,1))
-mses3 = np.zeros((k,1))
-for lambd in lambdas:
-    w_l = learnRidgeRegression(X_i,y,lambd)
-    mses3_train[i] = testOLERegression(w_l,X_i,y)
-    mses3[i] = testOLERegression(w_l,Xtest_i,ytest)
-    i = i + 1
-lambda_min_position = np.argmin(mses3)
-fig = plt.figure(figsize=[12,6])
-plt.subplot(1, 2, 1)
-plt.plot(w_i)
-plt.title('Weights for LearnOLERegression')
-plt.subplot(1, 2, 2)
-plt.plot(w_l)
-plt.title('Weights for LearnRidgeRegression')
-fig = plt.figure(figsize=[12,6])
-plt.subplot(1, 2, 1)
-plt.plot(lambdas,mses3_train)
-plt.title('MSE for Train Data')
-plt.subplot(1, 2, 2)
-plt.plot(lambdas,mses3)
-plt.title('MSE for Test Data')
+# Find the accuracy on Testing Dataset
+predicted_label_b_te = mlrPredict(W_b, test_data)
+print('\n Testing set Accuracy:' + str(100 * np.mean((predicted_label_b_te == test_label).astype(float))) + '%')
 
-# Problem 4
-k = 101
-lambdas = np.linspace(0, 1, num=k)
-i = 0
-mses4_train = np.zeros((k,1))
-mses4 = np.zeros((k,1))
-opts = {'maxiter' : 20}    # Preferred value.                                                
-w_init = np.ones((X_i.shape[1],1))
-for lambd in lambdas:
-    args = (X_i, y, lambd)
-    w_l = minimize(regressionObjVal, w_init, jac=True, args=args,method='CG', options=opts)
-    w_l = np.transpose(np.array(w_l.x))
-    w_l = np.reshape(w_l,[len(w_l),1])
-    mses4_train[i] = testOLERegression(w_l,X_i,y)
-    mses4[i] = testOLERegression(w_l,Xtest_i,ytest)
-    i = i + 1
-fig = plt.figure(figsize=[12,6])
-plt.subplot(1, 2, 1)
-plt.plot(lambdas,mses4_train)
-plt.plot(lambdas,mses3_train)
-plt.title('MSE for Train Data')
-plt.legend(['Using scipy.minimize','Direct minimization'])
+def plot_confusion_matrix(cm,target_names,title='Confusion matrix',cmap=None,normalize=True):
+    acc = np.trace(cm) / float(np.sum(cm))
+    mc = 1 - acc
 
-plt.subplot(1, 2, 2)
-plt.plot(lambdas,mses4)
-plt.plot(lambdas,mses3)
-plt.title('MSE for Test Data')
-plt.legend(['Using scipy.minimize','Direct minimization'])
+    if cmap is None:
+        cmap = plt.get_cmap('Purples')
+
+    plt.figure(figsize=(6, 6))
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+
+    if target_names is not None:
+        tick_marks = np.arange(len(target_names))
+        plt.xticks(tick_marks, target_names, rotation=45)
+        plt.yticks(tick_marks, target_names)
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    thresh = cm.max() / 1.5 if normalize else cm.max() / 2
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        if normalize:
+            plt.text(j, i, "{:0.4f}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+        else:
+            plt.text(j, i, "{:,}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
 
 
-# Problem 5
-pmax = 7
-lambda_opt = lambdas[lambda_min_position] # REPLACE THIS WITH lambda_opt estimated from Problem 3
-mses5_train = np.zeros((pmax,2))
-mses5 = np.zeros((pmax,2))
-for p in range(pmax):
-    Xd = mapNonLinear(X[:,2],p)
-    Xdtest = mapNonLinear(Xtest[:,2],p)
-    w_d1 = learnRidgeRegression(Xd,y,0)
-    mses5_train[p,0] = testOLERegression(w_d1,Xd,y)
-    mses5[p,0] = testOLERegression(w_d1,Xdtest,ytest)
-    w_d2 = learnRidgeRegression(Xd,y,lambda_opt)
-    mses5_train[p,1] = testOLERegression(w_d2,Xd,y)
-    mses5[p,1] = testOLERegression(w_d2,Xdtest,ytest)
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label\nAccuracy={:0.2f}; Misclassification={:0.2f}'.format(acc, mc))
+    plt.style.use('classic')
+    plt.show()
+    
 
-fig = plt.figure(figsize=[12,6])
-plt.subplot(1, 2, 1)
-plt.plot(range(pmax),mses5_train)
-plt.title('MSE for Train Data')
-plt.legend(('No Regularization','Regularization'))
+cf_train=metrics.confusion_matrix(train_label,predicted_label_tr)
+cf_test=metrics.confusion_matrix(test_label,predicted_label_te)
 
-plt.subplot(1, 2, 2)
-plt.plot(range(pmax),mses5)
-plt.title('MSE for Test Data')
-plt.legend(('No Regularization','Regularization'))
+plot_confusion_matrix(cm=cf_train,normalize=False,target_names=['0','1','2','3','4','5','6','7','8','9'],title="Confusion Matrix for Train Dataset")
+
+plot_confusion_matrix(cm=cf_test,normalize=False,target_names=['0','1','2','3','4','5','6','7','8','9'],title="Confusion Matrix for Test Dataset")
+
+print("Report for Training data")
+print(metrics.classification_report(predicted_label_tr,train_label))
+print("Report for Testing data")
+print(metrics.classification_report(predicted_label_te,test_label))
+
+cf_train=metrics.confusion_matrix(train_label,predicted_label_b_tr)
+cf_test=metrics.confusion_matrix(test_label,predicted_label_b_te)
+plot_confusion_matrix(cm=cf_train,normalize=False,target_names=['0','1','2','3','4','5','6','7','8','9'],title="Confusion Matrix for Train Dataset")
+plot_confusion_matrix(cm=cf_test,normalize=False,target_names=['0','1','2','3','4','5','6','7','8','9'],title="Confusion Matrix for Test Dataset")
+
+print("Report for Training data")
+print(metrics.classification_report(predicted_label_b_tr,train_label))
+print("Report for Testing data")
+print(metrics.classification_report(predicted_label_b_te,test_label))
